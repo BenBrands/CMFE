@@ -25,6 +25,7 @@
 
 #include <deal.II/grid/grid_generator.h>
 #include <deal.II/grid/grid_tools.h>
+#include <deal.II/grid/grid_out.h>
 
 #include <deal.II/dofs/dof_renumbering.h>
 #include <deal.II/dofs/dof_tools.h>
@@ -48,6 +49,7 @@
 
 
 #include <algorithm>
+#include <iostream>
 
 
 #include "SolidSerial.hpp"
@@ -70,8 +72,8 @@ fe(FESystem<dim>(FE_Q<dim>(parameters.poly_degree),dim)),
 dof_handler(*triangulation),
 u_fe(0),
 u_x_fe(0),
-u_y_fe(0),
-u_z_fe(0),
+u_y_fe(1),
+u_z_fe(2),
 quadrature(parameters.poly_degree+1),
 face_quadrature(parameters.poly_degree+1),
 material(material_parameter_file)
@@ -116,6 +118,10 @@ SolidSerial<dim>::make_grid()
     		}
 
     triangulation->refine_global(parameters.global_refinement);
+
+    std::ofstream out("./mesh.vtu");
+
+    GridOut().write_vtu(*triangulation,out);
 }
 
 
@@ -153,13 +159,6 @@ SolidSerial<dim>::make_constraints(AffineConstraints<double> &constraints,
 
 	if (dim==3)
 	{
-		// On the bottom face (bid=4) displacement in z-direction is homogeneously constrained
-		VectorTools::interpolate_boundary_values(dof_handler,
-												 4,
-												 ZeroFunction<dim>(dim),
-		                                         constraints,
-												 fe.component_mask(u_z_fe));
-
 		// On the face (bid=0) with normal in x-direction and at x=0 the
 		// displacement in x-direction is homogeneously constrained: symmetry
 		VectorTools::interpolate_boundary_values(dof_handler,
@@ -175,6 +174,13 @@ SolidSerial<dim>::make_constraints(AffineConstraints<double> &constraints,
 												 ZeroFunction<dim>(dim),
 		                                         constraints,
 												 fe.component_mask(u_y_fe));
+
+		// On the bottom face (bid=4) displacement in z-direction is homogeneously constrained
+		VectorTools::interpolate_boundary_values(dof_handler,
+												 4,
+												 ZeroFunction<dim>(dim),
+		                                         constraints,
+												 fe.component_mask(u_z_fe));
 	}
 	else
 	{
@@ -233,6 +239,8 @@ SolidSerial<dim>::update_qph(CellDataStorage<typename DoFHandler<dim>::cell_iter
 
 	std::vector<Tensor<2,dim>> qp_deformation_gradients(quadrature.size());
 
+	unsigned int num=0;
+
 	for (const auto &cell : dof_handler.active_cell_iterators())
 	{
 		fe_v.reinit(cell);
@@ -244,7 +252,20 @@ SolidSerial<dim>::update_qph(CellDataStorage<typename DoFHandler<dim>::cell_iter
 	    fe_v[u_fe].get_function_gradients(solution,qp_deformation_gradients);
 
 	    for (unsigned int qp=0; qp<quadrature.size(); ++qp)
+	    {
 	    	qp_data_cell[qp]->update_values(qp_deformation_gradients[qp]);
+
+	    	if (qp==0 && false)
+	    	{
+	    		std::cout << "      Cell #" << num << std::endl;
+				std::cout << "      F: [" << qp_data_cell[qp]->tensor_F << "]" << std::endl;
+				std::cout << "      S: [" << qp_data_cell[qp]->tensor_S << "]" << std::endl;
+				std::cout << "      C: [" << qp_data_cell[qp]->tensor_C << "]" << std::endl;
+				std::cout << "      det F: " << qp_data_cell[qp]->det_J << std::endl;
+				std::cout << std::endl;
+	    	}
+	    }
+	    ++num;
 	}
 }
 
@@ -317,9 +338,11 @@ SolidSerial<dim>::assemble_residuum(Vector<double> &residuum,
 
 	residuum = 0;
 
+	Vector<double> tmp(dof_handler.n_dofs());
+
 	FEValues<dim> fe_v(fe,
 					   quadrature,
-					   update_gradients | update_quadrature_points | update_JxW_values);
+					   update_gradients | update_JxW_values);
 
 	FEFaceValues<dim> fe_face_v(fe,
 								face_quadrature,
@@ -368,7 +391,7 @@ SolidSerial<dim>::assemble_residuum(Vector<double> &residuum,
 
 	    			for (unsigned int fqp=0; fqp<face_quadrature.size(); ++fqp)
 	    				for (unsigned int i=0; i<fe.dofs_per_cell; ++i)
-	    					cell_residuum[i] += (load_fqp[fqp] * fe_v[u_fe].value(i,fqp)) * fe_face_v.JxW(fqp);
+	    					cell_residuum[i] += (load_fqp[fqp] * fe_face_v[u_fe].value(i,fqp)) * fe_face_v.JxW(fqp);
 	    		}
 
 	    constraints.distribute_local_to_global(cell_residuum,local_dof_indices,residuum);
@@ -401,6 +424,8 @@ SolidSerial<dim>::solve_NewtonRaphson(Vector<double> &solution,
 
 	const double initial_residuum = residuum.l2_norm();
 
+	std::cout << "      Norm of initial residuum: " << initial_residuum << std::endl;
+
     for (unsigned int it=0; it< parameters.max_iterations_NR; ++it)
     {
     	 solve_linear_system(solution_increment,matrix,residuum);
@@ -409,11 +434,15 @@ SolidSerial<dim>::solve_NewtonRaphson(Vector<double> &solution,
 
     	 solution += solution_increment;
 
+    	 output_results(solution,"./solution_"+Utilities::to_string(it+1)+".vtu");
+
     	 update_qph(qp_data,solution);
 
     	 assemble_residuum(residuum,qp_data,load,constraints);
 
     	 const double norm_residuum = residuum.l2_norm();
+
+    	 std::cout << "      Norm of residuum after iteration " << it+1 << ": " << norm_residuum << std::endl;
 
     	 if (norm_residuum / initial_residuum < parameters.tol_f)
     		 return true;
@@ -480,9 +509,29 @@ SolidSerial<dim>::solve_linear_system(Vector<double> &solution,
 
 template <int dim>
 void
-SolidSerial<dim>::output_results() const
+SolidSerial<dim>::output_results(const Vector<double> &vec,
+								 const std::string &file_name) const
 {
+	DataOut<dim> data_out;
 
+	std::vector<DataComponentInterpretation::DataComponentInterpretation>
+	data_component_interpretation(dim,
+								  DataComponentInterpretation::component_is_part_of_vector);
+
+	std::vector<std::string> solution_name(dim,"displacement");
+
+	data_out.attach_dof_handler(dof_handler);
+
+	data_out.add_data_vector(vec,
+							 solution_name,
+							 DataOut<dim>::type_dof_data,
+							 data_component_interpretation);
+
+	data_out.build_patches();
+
+    std::ofstream output(file_name);
+
+    data_out.write_vtu(output);
 }
 
 
@@ -494,12 +543,23 @@ SolidSerial<dim>::run()
 
 	system_setup();
 
+	Point<dim> origin_load;
+	if (dim==3)
+		origin_load[2] = 1;
+	else
+		origin_load[1] = 1;
 
 	std::shared_ptr<Load<dim>> load =
-			std::make_shared<ParabolicLoad<dim>>(Point<dim>(),
+			std::make_shared<ParabolicLoad<dim>>(origin_load,
 												 parameters.p_0 * parameters.scale * parameters.scale,
 												 parameters.parabola_root);
 
+	std::cout << std::endl << std::endl;
+
+	std::cout << "Triangulation consists of " << triangulation->n_active_cells() << " elements"
+			  << std::endl
+			  << "Number of DoFs: " << dof_handler.n_dofs()
+			  << std::endl << std::endl;
 
 	Vector<double> solution(dof_handler.n_dofs()), solution_reset(dof_handler.n_dofs());
 
@@ -519,6 +579,8 @@ SolidSerial<dim>::run()
 
 	for (unsigned int count=0; count < parameters.max_n_load_steps; ++count)
 	{
+		std::cout << "   Solve non-linear problem for load factor = " << load_factor << std::endl;
+
 		load->set_load_factor(load_factor);
 
 		const bool conv = solve_NewtonRaphson(solution,

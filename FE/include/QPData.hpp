@@ -85,6 +85,8 @@ public:
 
 	void update_values(const Tensor<2,dim> &disp_grad);
 
+	void update_values(const SymmetricTensor<2,dim> &tensor_C);
+
 	Tensor<2,dim> tensor_F;
 
 	double det_J=0;

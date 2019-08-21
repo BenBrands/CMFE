@@ -21,6 +21,7 @@
 #include <deal.II/base/logstream.h>
 #include <deal.II/base/utilities.h>
 #include <deal.II/base/exceptions.h>
+#include <deal.II/physics/elasticity/standard_tensors.h>
 
 
 #include <memory>
@@ -30,6 +31,23 @@
 
 
 using namespace dealii;
+
+
+
+template <int dim>
+SymmetricTensor<4,dim> dInvC_dC(const SymmetricTensor<2,dim> &inv_C)
+{
+	SymmetricTensor<4,dim> result;
+
+	for (unsigned int i=0; i<dim; ++i)
+		for (unsigned int j=i; j<dim; ++j)
+			for (unsigned int k=0; k<dim; ++k)
+				for (unsigned int l=k; l<dim; ++l)
+					result[i][j][k][l] = - (inv_C[i][k] * inv_C[j][l] + inv_C[i][l] * inv_C[j][k]) / 2;
+
+	return result;
+}
+
 
 
 namespace ConstitutiveLaws
@@ -49,16 +67,13 @@ void
 CompressibleNeoHookean<dim>::stress_S(SymmetricTensor<2,dim> &tensor_S,
 									  const SymmetricTensor<2,dim> &tensor_C) const
 {
-	(void)tensor_S;
-	(void)tensor_C;
-/*
- *
- *
- *
- *
- *
- *
- */
+	const double det_F = sqrt(determinant(tensor_C));
+
+	const SymmetricTensor<2,dim> inv_C = invert(tensor_C);
+
+	tensor_S = mu * Physics::Elasticity::StandardTensors<dim>::I;
+
+	tensor_S += (lambda * log(det_F) - mu) * inv_C;
 }
 
 
@@ -67,16 +82,13 @@ void
 CompressibleNeoHookean<dim>::material_tangent(SymmetricTensor<4,dim> &tangent,
 									  	  	  const SymmetricTensor<2,dim> &tensor_C) const
 {
-	(void)tangent;
-	(void)tensor_C;
-/*
- *
- *
- *
- *
- *
- *
- */
+	const double det_F = sqrt(determinant(tensor_C));
+
+	const SymmetricTensor<2,dim> inv_C = invert(tensor_C);
+
+	tangent = 2 * (lambda * log(det_F) - mu) * dInvC_dC(inv_C);
+
+	tangent += lambda * outer_product(inv_C,inv_C);
 }
 
 

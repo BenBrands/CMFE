@@ -184,6 +184,8 @@ template <int dim>
 void
 QPData<dim>::reinit(const MaterialData &material_data)
 {
+	tensor_F = Physics::Elasticity::StandardTensors<dim>::I;
+
 	tensor_C = Physics::Elasticity::StandardTensors<dim>::I;
 
 	det_J = 1;
@@ -205,7 +207,24 @@ QPData<dim>::update_values(const Tensor<2,dim> &disp_grad)
 {
 	tensor_F = Physics::Elasticity::Kinematics::F(disp_grad);
 
+	det_J = determinant(tensor_F);
+
+	AssertThrow(det_J > 0,ExcMessage("det_J <= 0"));
+
 	tensor_C = Physics::Elasticity::Kinematics::C(tensor_F);
+
+	material->stress_S(tensor_S,tensor_C);
+
+	material->material_tangent(tangent,tensor_C);
+}
+
+
+
+template <int dim>
+void
+QPData<dim>::update_values(const SymmetricTensor<2,dim> &tensor_C_in)
+{
+	tensor_C = tensor_C_in;
 
 	det_J = sqrt(determinant(tensor_C));
 

@@ -101,7 +101,8 @@ private:
 						const SparseMatrix<double> &matrix,
 						const Vector<double> &rhs) const;
 
-	void output_results() const;
+	void output_results(const Vector<double> &vec,
+						const std::string &file_name) const;
 
 	FEParameters parameters;
 
