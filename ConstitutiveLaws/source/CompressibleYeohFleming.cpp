@@ -122,9 +122,9 @@ CompressibleYeohFleming<dim>::stress_S(SymmetricTensor<2,dim> &tensor_S,
 									  const SymmetricTensor<2,dim> &tensor_C) const
 {
 
-	 double J=1;
+	double J=1;
 
-	 J=sqrt(determinant(tensor_C));
+	J=sqrt(determinant(tensor_C));
 
 	Assert(J>0,ExcMessage("Determinant J is smaller or equal to 0"));
 
@@ -133,6 +133,8 @@ CompressibleYeohFleming<dim>::stress_S(SymmetricTensor<2,dim> &tensor_S,
 	double I1=first_invariant(tensor_C);
 
 	double I1_=std::pow(J,(-2/(double)dim))*I1;
+
+//	std::cout<<"tensor s "<<I1_;
 
 	SymmetricTensor<2,dim> I;
 
@@ -146,6 +148,10 @@ CompressibleYeohFleming<dim>::stress_S(SymmetricTensor<2,dim> &tensor_S,
 
 	tensor_S*= factor;
 
+//	std::cout<<"tensor s "<<tensor_S;
+
+
+
 }
 
 
@@ -156,15 +162,17 @@ CompressibleYeohFleming<dim>::material_tangent(SymmetricTensor<4,dim> &tangent,
 {
 	double J;
 
-	 J=sqrt(determinant(tensor_C));
+	J=sqrt(determinant(tensor_C));
 
 	Assert(J>0,ExcMessage("Determinant J is smaller or equal to 0"));
 
 	SymmetricTensor<2,dim> inv_C= invert(tensor_C);
 
-	int I1=first_invariant(tensor_C);
+	double I1=first_invariant(tensor_C);
 
-	int I1_=std::pow(J,(-2/(double)dim))*I1;
+	double I1_=std::pow(J,(-2/(double)dim))*I1;
+
+//	std::cout<<"tensor C "<<tensor_C;
 
 	SymmetricTensor<2,dim> I;
 
@@ -176,19 +184,34 @@ CompressibleYeohFleming<dim>::material_tangent(SymmetricTensor<4,dim> &tangent,
 
 	double factor=(2/(double)dim)*(2*A*std::exp(-B*(I1_-3))+2*C*(I_m-3)/(I_m-I1_));
 
-	C_dev=(product(I,I)-(1/(double)dim)*I1*product(I,inv_C)-(1/(double)dim)*I1*product(inv_C,I)+std::pow((1/(double)dim)*I1,2)*product(inv_C,inv_C));
+	C_dev=(outer_product(I,I)-(1/(double)dim)*I1*outer_product(I,inv_C)-(1/(double)dim)*I1*outer_product(inv_C,I)+std::pow((1/(double)dim)*I1,2)*outer_product(inv_C,inv_C));
 
 	C_dev*=factor_dev;
 
-	tangent=(tensorproduct(inv_C,inv_C)-(1/(double)dim)*product(inv_C,inv_C));
+	tangent=(tensorproduct(inv_C,inv_C)-(1/(double)dim)*outer_product(inv_C,inv_C))*I1;
 
-	tangent-=(product(inv_C,I)+product(I,inv_C)-(2/(double)dim)*I1_*product(inv_C,inv_C));
+	tangent-=(outer_product(inv_C,I)+outer_product(I,inv_C)-(2/(double)dim)*I1*outer_product(inv_C,inv_C));
 
 	tangent*=factor;
 
 	tangent+=C_dev;
 
 	tangent*=std::pow(J,(-2/(double)dim));
+
+//	for (unsigned int i=0; i<dim; i++)
+//	{
+//		for (unsigned int j=0; j<dim; j++)
+//					{
+//			for (unsigned int k=0; k<dim; k++)
+//						{
+//				for (unsigned int l=0; l<dim; l++)
+//							{
+//								std::cout<<"tangent "<<tangent[i][j][k][l]<<"  ";
+//							}
+//						}
+//					}
+//	}
+
 
 }
 

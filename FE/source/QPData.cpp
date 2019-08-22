@@ -249,33 +249,30 @@ MaterialData::parse_parameters(ParameterHandler &prm)
 		{
 			size = prm.get_integer("Size");
 
+			Assert(size<=5,ExcMessage("Vector is too long"));
+
+			alpha.reinit(size);
+
+			mu_O.reinit(size);
+
 			B_vol = prm.get_double("B_vol");
 
 			alpha_vol = prm.get_double("Alpha_vol");
-		}
 
-		Assert(size>5,ExcMessage("Vector is too long"));
-
-
-		for(int i=0; i<size; ++i)
-		{
-
-			std::string alpha_s = "Alpha "+Utilities::to_string(i+1);
-
-			std::string mu_s = "Mu "+Utilities::to_string(i+1);
-
-			prm.enter_subsection("Material properties Ogden");
+			for(int i=0; i<size; ++i)
 			{
-				alpha[i] = prm.get_double(alpha_s);
 
-		        mu_O[i] = prm.get_double(mu_s);
+				std::cout << "read " << ("Alpha "+Utilities::to_string(i+1)) << std::endl;
+
+				alpha[i] = prm.get_double("Alpha "+Utilities::to_string(i+1));
+
+				mu_O[i] = prm.get_double("Mu "+Utilities::to_string(i+1));
 			}
-			prm.leave_subsection();
-
 		}
+		prm.leave_subsection();
 	}
 
-	else if (material_name.compare("YeohFleminh")==0 || material_name.compare("IncompressibleYeohFleming")== 0)
+	else if (material_name.compare("YeohFleming")==0 || material_name.compare("IncompressibleYeohFleming")== 0)
 	{
 		prm.enter_subsection("Material properties YeohFleming");
 		{

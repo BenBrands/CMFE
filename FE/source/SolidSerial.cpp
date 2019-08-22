@@ -412,9 +412,11 @@ SolidSerial<dim>::solve_NewtonRaphson(Vector<double> &solution,
 
 	make_constraints(constraints,0);
 
+
 	update_qph(qp_data,solution);
 
 	Vector<double> residuum(solution.size());
+
 
 	assemble_residuum(residuum,qp_data,load,constraints);
 
@@ -428,6 +430,20 @@ SolidSerial<dim>::solve_NewtonRaphson(Vector<double> &solution,
 
     for (unsigned int it=0; it< parameters.max_iterations_NR; ++it)
     {
+
+//    		for (unsigned int i=0; i<dim; i++)
+//    		{
+//    			for (unsigned int j=0; j<dim; j++)
+//    						{
+//    				for (unsigned int k=0; k<dim; k++)
+//    							{
+//    					for (unsigned int l=0; l<dim; l++)
+//    								{
+//    									std::cout<<"tangent "<<matrix[i][j][k][l]<<"  ";
+//    								}
+//    							}
+//    						}
+//    		}
     	 solve_linear_system(solution_increment,matrix,residuum);
 
     	 constraints.distribute(solution_increment);
