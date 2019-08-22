@@ -1,0 +1,11 @@
+# Listing of Parameters
+
+subsection Type of Material
+  # NeoHookean|Ogden|Yeoh|TNM|Gent|ArrudaBoyce
+  set Name = NeoHookean
+end
+
+subsection Material properties NeoHookean
+   set First Lame Parameter  = 12
+   set Second Lame Parameter = 8
+end

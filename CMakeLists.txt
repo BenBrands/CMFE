@@ -44,4 +44,5 @@ add_subdirectory( Executables )
 add_subdirectory( ConstitutiveLaws )
 add_subdirectory( FE )
 
-#ENABLE_TESTING()
+ENABLE_TESTING()
+ADD_SUBDIRECTORY(tests/ConvergenceTests)
