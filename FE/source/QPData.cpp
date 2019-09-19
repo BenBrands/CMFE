@@ -63,7 +63,9 @@ B(cpy.B),
 C(cpy.C),
 I_m(cpy.I_m),
 alpha_vol(cpy.alpha_vol),
-B_vol(cpy.B_vol)
+B_vol(cpy.B_vol),
+kappa_vol(cpy.kappa_vol),
+betha_vol(cpy.betha_vol)
 {}
 
 
@@ -95,6 +97,10 @@ MaterialData::operator=(const MaterialData &cpy)
 		alpha_vol = cpy.alpha_vol;
 
 		B_vol = cpy.B_vol;
+
+		kappa_vol =cpy.kappa_vol;
+
+		betha_vol = cpy.betha_vol;
 	}
 	return *this;
 }
@@ -178,12 +184,20 @@ MaterialData::declare_parameters(ParameterHandler &prm)
 						  Patterns::Double(0.));
 
 		prm.declare_entry("Alpha_vol",
-						  "1e3",
+						  "4",
 						  Patterns::Double(0.),
 						  "in Pa");
 
 		prm.declare_entry("B_vol",
-						  "4",
+						  "1.3e3",
+						  Patterns::Double(0.));
+
+		prm.declare_entry("kappa_vol",
+						  "2e3",
+						  Patterns::Double(0.));
+
+		prm.declare_entry("betha_vol",
+						  "9",
 						  Patterns::Double(0.));
 
 	}
@@ -208,12 +222,12 @@ MaterialData::declare_parameters(ParameterHandler &prm)
 						Patterns::Double(0.));
 
 		prm.declare_entry("Alpha_vol",
-						  "1e3",
+						  "4",
 						  Patterns::Double(0.),
 						  "in Pa");
 
 		prm.declare_entry("B_vol",
-						  "4",
+						  "1.3e3",
 						  Patterns::Double(0.));
 	}
 	prm.leave_subsection();
@@ -228,10 +242,6 @@ MaterialData::parse_parameters(ParameterHandler &prm)
 		material_name = prm.get("Name");
 	}
 	prm.leave_subsection();
-
-
-	std::cout << "material.name: " << material_name << std::endl;
-
 
 	if (material_name.compare("NeoHookean") == 0)
 	{
@@ -261,9 +271,6 @@ MaterialData::parse_parameters(ParameterHandler &prm)
 
 			for(int i=0; i<size; ++i)
 			{
-
-				std::cout << "read " << ("Alpha "+Utilities::to_string(i+1)) << std::endl;
-
 				alpha[i] = prm.get_double("Alpha "+Utilities::to_string(i+1));
 
 				mu_O[i] = prm.get_double("Mu "+Utilities::to_string(i+1));
@@ -337,6 +344,10 @@ MaterialData::serialize(Archive &ar,
 	ar & alpha_vol;
 
 	ar & B_vol;
+
+	ar & kappa_vol;
+
+	ar & betha_vol;
 }
 
 
@@ -363,12 +374,12 @@ tensor_C(Physics::Elasticity::StandardTensors<dim>::I)
 
 	else if (material_data.material_name.compare("Ogden")==0)
 	{
-		material = std::make_shared<ConstitutiveLaws::CompressibleOgden<dim>>(material_data.alpha,material_data.mu_O);
+		material = std::make_shared<ConstitutiveLaws::CompressibleOgden<dim>>(material_data.alpha,material_data.mu_O,material_data.kappa_vol, material_data.betha_vol, material_data.alpha_vol, material_data.B_vol);
 	}
 
 	else if (material_data.material_name.compare("YeohFleming") ==0)
 	{
-		material = std::make_shared<ConstitutiveLaws::CompressibleYeohFleming<dim>>(material_data.A,material_data.B, material_data.C, material_data.I_m);
+		material = std::make_shared<ConstitutiveLaws::CompressibleYeohFleming<dim>>(material_data.A,material_data.B, material_data.C, material_data.I_m, material_data.alpha_vol, material_data.B_vol);
 	}
 
 	else if (material_data.material_name.compare("IncopmressibleYeohFleming") ==0)
@@ -394,6 +405,8 @@ QPData<dim>::reinit(const MaterialData &material_data)
 {
 	tensor_F = Physics::Elasticity::StandardTensors<dim>::I;
 
+
+
 	tensor_C = Physics::Elasticity::StandardTensors<dim>::I;
 
 	det_J = 1;
@@ -405,12 +418,12 @@ QPData<dim>::reinit(const MaterialData &material_data)
 
 	else if (material_data.material_name.compare("Ogden")==0)
 	{
-		material = std::make_shared<ConstitutiveLaws::CompressibleOgden<dim>>(material_data.alpha,material_data.mu_O);
+		material = std::make_shared<ConstitutiveLaws::CompressibleOgden<dim>>(material_data.alpha,material_data.mu_O,material_data.kappa_vol, material_data.betha_vol, material_data.alpha_vol, material_data.B_vol);
 	}
 
 	else if (material_data.material_name.compare("YeohFleming") ==0)
 	{
-		material = std::make_shared<ConstitutiveLaws::CompressibleYeohFleming<dim>>(material_data.A,material_data.B, material_data.C, material_data.I_m);
+		material = std::make_shared<ConstitutiveLaws::CompressibleYeohFleming<dim>>(material_data.A,material_data.B, material_data.C, material_data.I_m, material_data.alpha_vol, material_data.B_vol);
 	}
 
 	else if (material_data.material_name.compare("IncopmressibleYeohFleming") ==0)
