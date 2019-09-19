@@ -56,9 +56,13 @@ private:
 public:
 
 	CompressibleYeohFleming(const double A,
-						   const double B, const double C, const double I_m);
+						   const double B, const double C, const double I_m, const double alpha, const double B_vol);
 
 	virtual ~CompressibleYeohFleming() {}
+
+	SymmetricTensor<4,dim> tangente_C_bar(const SymmetricTensor<2,dim> &tensor_C) const;
+
+	SymmetricTensor<2,dim> stress_S_bar(const SymmetricTensor<2,dim> &tensor_C) const;
 
 	virtual void stress_S(SymmetricTensor<2,dim> &tensor_S,
 						  const SymmetricTensor<2,dim> &tensor_C) const;
@@ -78,7 +82,7 @@ public:
 	virtual void material_tangent_vol(SymmetricTensor<4,dim> &tangent,
 								  	  const SymmetricTensor<2,dim> &tensor_C) const;
 
-	const double A, B, C, I_m;
+	const double A, B, C, I_m, alpha, B_vol;
 };
 
 }//namespace ConstitutiveLaws

@@ -1,0 +1,15 @@
+# Listing of Parameters
+
+subsection Type of Material
+  # NeoHookean|Ogden|Yeoh|TNM|Gent|ArrudaBoyce|YeohFleming
+  set Name = YeohFleming
+end
+
+subsection Material properties YeohFleming
+	set A = 0.0601
+	set B = 0.0124
+	set C = 0.1
+	set I_m = 78.26
+        set Alpha_vol = 4
+	set B_vol = 1.3e3
+end
