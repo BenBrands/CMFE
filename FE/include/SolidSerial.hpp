@@ -101,7 +101,7 @@ private:
 						const SparseMatrix<double> &matrix,
 						const Vector<double> &rhs) const;
 
-	void output_results(const Vector<double> &vec,
+	void output_results(const Vector<double> &vec, CellDataStorage<typename DoFHandler<dim>::cell_iterator, QPData<dim>> &qp_data,
 						const std::string &file_name) const;
 
 	FEParameters parameters;

@@ -431,30 +431,19 @@ SolidSerial<dim>::solve_NewtonRaphson(Vector<double> &solution,
     for (unsigned int it=0; it< parameters.max_iterations_NR; ++it)
     {
 
-//    		for (unsigned int i=0; i<dim; i++)
-//    		{
-//    			for (unsigned int j=0; j<dim; j++)
-//    						{
-//    				for (unsigned int k=0; k<dim; k++)
-//    							{
-//    					for (unsigned int l=0; l<dim; l++)
-//    								{
-//    									std::cout<<"tangent "<<matrix[i][j][k][l]<<"  ";
-//    								}
-//    							}
-//    						}
-//    		}
     	 solve_linear_system(solution_increment,matrix,residuum);
 
     	 constraints.distribute(solution_increment);
 
     	 solution += solution_increment;
 
-    	 output_results(solution,"./solution_"+Utilities::to_string(it+1)+".vtu");
+    	 output_results(solution,qp_data,"./solution_"+Utilities::to_string(it+1)+".vtu");
 
     	 update_qph(qp_data,solution);
 
     	 assemble_residuum(residuum,qp_data,load,constraints);
+
+    	 output_results(residuum,qp_data,"./solution_"+Utilities::to_string(it+1)+".vtu");
 
     	 const double norm_residuum = residuum.l2_norm();
 
@@ -525,10 +514,12 @@ SolidSerial<dim>::solve_linear_system(Vector<double> &solution,
 
 template <int dim>
 void
-SolidSerial<dim>::output_results(const Vector<double> &vec,
+SolidSerial<dim>::output_results(const Vector<double> &vec, CellDataStorage<typename DoFHandler<dim>::cell_iterator, QPData<dim>> &qp_data,
 								 const std::string &file_name) const
 {
 	DataOut<dim> data_out;
+
+	data_out.attach_dof_handler(dof_handler);
 
 	std::vector<DataComponentInterpretation::DataComponentInterpretation>
 	data_component_interpretation(dim,
@@ -536,7 +527,23 @@ SolidSerial<dim>::output_results(const Vector<double> &vec,
 
 	std::vector<std::string> solution_name(dim,"displacement");
 
-	data_out.attach_dof_handler(dof_handler);
+	Vector<double> norm_of_stress(triangulation->n_active_cells());
+
+	SymmetricTensor<2, dim> accumulated_stress;
+	for (const auto &cell : dof_handler.active_cell_iterators())
+		{
+		std::vector<std::shared_ptr<QPData<dim>>> qp_data_cell = qp_data.get_data(cell);
+
+		  for (unsigned int qp=0; qp<quadrature.size(); ++qp)
+				{
+			  accumulated_stress += qp_data_cell[qp]->tensor_S;
+
+			  norm_of_stress(cell->active_cell_index()) =
+				(accumulated_stress / quadrature.size()).norm();
+				}
+		}
+
+	data_out.add_data_vector(norm_of_stress, "norm_of_stress");
 
 	data_out.add_data_vector(vec,
 							 solution_name,
