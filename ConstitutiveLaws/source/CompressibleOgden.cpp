@@ -24,6 +24,8 @@
 
 
 #include <memory>
+#include <array>
+
 
 
 #include "CompressibleOgden.hpp"
@@ -37,120 +39,177 @@ namespace ConstitutiveLaws
 
 template <int dim>
 SymmetricTensor<4,dim> tensorproduct(SymmetricTensor<2,dim> &A,SymmetricTensor<2,dim> &B)
-		{
+{
 	SymmetricTensor<4,dim> C;
 
-			for (unsigned int i=0; i<dim; i++)
+	for (unsigned int i=0; i<dim; i++)
 			{
-				for (unsigned int j=0; j<dim; j++)
+		for (unsigned int j=0; j<dim; j++)
+					{
+			for (unsigned int k=0; k<dim; k++)
+						{
+				for (unsigned int l=0; l<dim; l++)
 							{
-					for (unsigned int k=0; k<dim; k++)
-								{
-						for (unsigned int l=0; l<dim; l++)
-									{
-										C[i][j][k][l]=0;
+								C[i][j][k][l]=0;
 
-										C[i][j][k][l]=(A[i][k]*B[j][l]+A[i][l]*B[j][k]);
-									}
-								}
+								C[i][j][k][l]=(A[i][k]*B[j][l]+A[i][l]*B[j][k]);
 							}
-			}
+						}
+					}
+				}
 
-			C*=  0.5;
+	C*=  0.5;
 
-			return C;
-		}
+	return C;
+}
 
-template<typename T>
-int kroneckerdelta(T &x,T &y)
+
+
+template<int dim>
+void tensor_to_symmetrictensor(SymmetricTensor<4,dim> &Sym, Tensor <4,dim> &T)
 {
-	if (x==y)
-		return 1;
-	else
-		return 0;
+	for (unsigned int i=0; i<dim; i++)
+			{
+		for (unsigned int j=0; j<dim; j++)
+					{
+			for (unsigned int k=0; k<dim; k++)
+						{
+				for (unsigned int l=0; l<dim; l++)
+							{
+								Sym[i][j][k][l]=T[i][j][k][l];
+							}
+						}
+					}
+				}
+
+
 
 }
+
+
 
 template <int dim>
 CompressibleOgden<dim>::CompressibleOgden(const Vector<double> alpha_,
-													const Vector<double> mu_)
+													const Vector<double> mu_,
+													const double kappa_vol_,
+													const double betha_vol_,
+													const double alpha_vol_,
+													const double B_)
 :
 alpha(alpha_),
-mu(mu_)
+mu(mu_),
+kappa_vol(kappa_vol_),
+betha_vol(betha_vol_),
+alpha_vol(alpha_vol_),
+B_vol(B_)
+
 {}
 
+
+
 template <int dim>
-void
-CompressibleOgden<dim>::stress_S_i(double &S,
-		  const SymmetricTensor<2,dim> &tensor_C,const int i) const
+double
+CompressibleOgden<dim>::stress_S_iso_i(const std::array<std::pair<double,Tensor<1,dim>>,dim> &eigenpairs_C,
+		  	  	  	  	  	  	  	   const double det_F,
+									   const int i) const
 {
-double J=1;
+	double result=0;
 
-J=sqrt(determinant(tensor_C));
+	const double lambda_i_bar = std::sqrt(eigenpairs_C[i].first) * std::pow(det_F,-1.0/(double)dim);
 
-Assert(J>0,ExcMessage("Determinant J is smaller or equal to 0"));
-
-double S_1;
-
-double S_2;
-
-Vector<double> lambda_(dim);
-
-for (unsigned int c=0; c<dim; c++)
-	 {
-		 lambda_[c]=sqrt(tensor_C[c][c]);
-	 }
-
-
-lambda_*=std::pow(J,-1/(double)dim);
-
-S_1=0;
-
-S_2=0;
-
-	for (unsigned int k=0; k<alpha.size(); k++)
-	{
-		S_1+=std::pow(lambda_[i],alpha[k]-2);
-
-		S_1*=mu[k];
-
-
-
-		for (unsigned int j=0;j<dim; j++)
+	for (unsigned int k=0; k<alpha.size(); ++k)
 		{
-			S_2+=(mu[k]/(double)dim);
-
-			S_2*=std::pow(lambda_[j],alpha[k]);
-
-			S_2*=std::pow(lambda_[i],-2);
-
+			result += mu[k] * std::pow(lambda_i_bar,(alpha[k]))/ (eigenpairs_C[i].first );
 		}
-	}
 
-S=S_1;
+	for (unsigned int j=0; j<dim; ++j)
+		{
+			for (unsigned int k=0; k<alpha.size(); ++k)
+				{
+				const double lambda_j_bar = std::sqrt(eigenpairs_C[j].first) * std::pow(det_F,-1.0/(double)dim);
 
-S-=S_2;
-
-S*=std::pow(J,-2/(double)dim);
+				result -= mu[k] * std::pow(lambda_j_bar,alpha[k]) / (eigenpairs_C[i].first* dim);
+				}
+		}
+	return result;
 }
+
+
+
+template <int dim>
+double
+CompressibleOgden<dim>::dS_iso_i_dlambda_j(const std::array<std::pair<double,Tensor<1,dim>>,dim> &eigenpairs_C,
+		  	  	  	  	  	  	  	   	   const double det_F,
+										   const int i,const int j) const
+{
+	const double lambda_i_bar = std::sqrt(eigenpairs_C[i].first) * std::pow(det_F,-1.0/(double)dim);
+	const double lambda_j_bar = std::sqrt(eigenpairs_C[j].first) * std::pow(det_F,-1.0/(double)dim);
+
+	double result=0;
+
+	if (i==j)
+	{
+		double term1=0;
+		double term2=0;
+
+		for (unsigned int p=0; p<alpha.size(); ++p)
+			{
+				double sum_k=0;
+				for (unsigned int k=0; k<dim; ++k)
+					{
+						const double lambda_k_bar = std::sqrt(eigenpairs_C[k].first) * std::pow(det_F,-1.0/(double)dim);
+
+						sum_k+= std::pow(lambda_k_bar,alpha[p])*(2.0+(alpha[p]/dim));
+					}
+				term1+= mu[p]*std::pow(lambda_i_bar,alpha[p])*((1.0-(double)2.0/dim)*alpha[p]-2.0);
+				term2+=mu[p]*sum_k;
+			}
+
+		result=(term1/(eigenpairs_C[i].first*eigenpairs_C[i].first))+(term2/((double)dim*eigenpairs_C[i].first*eigenpairs_C[i].first));
+	}
+	else
+	{
+		double term1=0;
+
+		for (unsigned int p=0; p<alpha.size(); ++p)
+			{
+				double sum_k=0;
+				for (unsigned int k=0; k<dim; ++k)
+					{
+						const double lambda_k_bar = std::sqrt(eigenpairs_C[k].first) * std::pow(det_F,-1.0/(double)dim);
+
+						sum_k+=std::pow(lambda_k_bar,alpha[p]);
+					}
+				term1+=(mu[p]*alpha[p]*((sum_k/(dim*dim))-(std::pow(lambda_i_bar,alpha[p])/dim)-(std::pow(lambda_j_bar,alpha[p])/dim)));
+			}
+		result=(term1/(eigenpairs_C[i].first*eigenpairs_C[j].first));
+	}
+	return result;
+}
+
+
 
 template <int dim>
 void
 CompressibleOgden<dim>::stress_S(SymmetricTensor<2,dim> &tensor_S,
 									  const SymmetricTensor<2,dim> &tensor_C) const
 {
+	tensor_S=0;
 
-	for(unsigned int i=0; i<dim; i++)
-	{
-		double S=0;
+	SymmetricTensor<2,dim> S_iso;
 
-		stress_S_i(S,tensor_C,i);
+	SymmetricTensor<2,dim> S_vol;
 
-		tensor_S[i][i]=S;
+	stress_S_iso(S_iso,tensor_C);
 
-	}
+	stress_S_vol(S_vol,tensor_C);
+
+	tensor_S+=S_iso;
+
+	tensor_S+=S_vol;
 
 }
+
 
 
 template <int dim>
@@ -158,115 +217,51 @@ void
 CompressibleOgden<dim>::material_tangent(SymmetricTensor<4,dim> &tangent,
 									  	  	  const SymmetricTensor<2,dim> &tensor_C) const
 {
+	tangent=0;
 
-	 double J=1;
+	SymmetricTensor<4,dim> tangent_iso;
 
-	 J=sqrt(determinant(tensor_C));
+	SymmetricTensor<4,dim> tangent_vol;
 
-	Assert(J>0,ExcMessage("Determinant J is smaller or equal to 0"));
+	material_tangent_iso(tangent_iso,tensor_C);
 
-	Vector<double> lambda_(dim);
+	material_tangent_vol(tangent_vol,tensor_C);
 
-	 for (unsigned int c=0; c<dim; c++)
-		 {
-			 lambda_[c]=sqrt(tensor_C[c][c]);
-		 }
+	tangent+=tangent_iso;
 
-	lambda_*= std::pow(J,-1/(double)dim);
-
-	SymmetricTensor<4,dim> dev_S;
-
-	SymmetricTensor<4,dim> S;
-
-
-	for(unsigned int i=0; i<dim; i++)
-	{
-		for(unsigned int m=0; m<dim; m++)
-			{
-
-			dev_S[i][i][m][m]=0;
-
-			for(unsigned int k=0; k<alpha.size(); k++)
-				{
-					int kroneckerdeltaIM= kroneckerdelta(i,m);
-
-					dev_S[i][i][m][m]+=mu[k]*((-2/(double)dim)*std::pow(lambda_[m],-2)*std::pow(lambda_[i],alpha[k]-2)+(alpha[k]-2)*(kroneckerdeltaIM*std::pow(lambda_[m],-1)*std::pow(lambda_[i],alpha[k]-3)-(1/(double)dim)*std::pow(lambda_[i],alpha[k]-2)*std::pow(lambda_[m],-2))-(alpha[k]/(double)dim)*std::pow(lambda_[i],-2)*std::pow(lambda_[m],alpha[k]-2));
-
-					for (unsigned int j=0; j<dim; j++)
-					{
-						dev_S[i][i][m][m]+=(mu[k]/(double)dim)*((2/(double)dim)*std::pow(lambda_[j],alpha[k])*std::pow(lambda_[i],-2)*std::pow(lambda_[m],-2)-alpha[k]*(-(1/(double)dim)*std::pow(lambda_[j],alpha[k])*std::pow(lambda_[i],-2)*std::pow(lambda_[m],-2))+2*(kroneckerdeltaIM*std::pow(lambda_[j],alpha[k])*std::pow(lambda_[i],-3)*std::pow(lambda_[m],-1)-(1/(double)dim)*std::pow(lambda_[i],-2)*std::pow(lambda_[j],alpha[k])*std::pow(lambda_[m],-2)));
-					}
-				}
-
-			}
-	}
-
-			for(unsigned int l=0;l<dim;l++)
-			{
-				for(unsigned int k=0;k<dim;k++)
-				{
-
-					if ((l!=k)&& (lambda_[l]!=lambda_[k]))
-					{
-					double factor;
-
-					factor=std::pow(lambda_[k],2);
-
-					factor-=std::pow(lambda_[l],2);
-
-					double S_k=0;
-
-					double S_l=0;
-
-					stress_S_i(S_k,tensor_C,k);
-
-					S[l][k][l][k]=S_k;
-
-					S[l][k][k][l]=S_k;
-
-					stress_S_i(S_l,tensor_C,l);
-
-					S[l][k][l][k]-=S_l;
-
-					S[l][k][k][l]-=S_l;
-
-					tangent[l][k][l][k]+=S[l][k][l][k];
-
-					tangent[l][k][k][l]+=S[l][k][k][l];
-
-					tangent[l][k][l][k]/=factor;
-
-					tangent[l][k][k][l]/=factor;
+	tangent+=tangent_vol;
 
 }
-					else
-					{
-						tangent[l][k][l][k]=0;
 
-						tangent[l][k][k][l]=0;
-					}
-
-				}
-			}
-
-
-		dev_S*=std::pow(J,-(4/(double)dim));
-
-		tangent+=dev_S;
-
-}
 
 
 template <int dim>
 void
 CompressibleOgden<dim>::stress_S_iso(SymmetricTensor<2,dim> &tensor_S,
-		  	  	  	  	  	  			  const SymmetricTensor<2,dim> &tensor_C) const
+		  	  	  	  	  	  		 const SymmetricTensor<2,dim> &tensor_C) const
 {
-	(void)tensor_S;
-	(void)tensor_C;
+	tensor_S = 0;
 
-	Assert(false,ExcMessage("The function stress_S_iso is not callable for CompressibleOgden"));
+	std::array<std::pair<double,Tensor<1,dim>>,dim> eigenpairs = eigenvectors(tensor_C,SymmetricTensorEigenvectorMethod::ql_implicit_shifts);
+
+	double det_F = 1;
+	for (unsigned int i=0; i<dim; ++i)
+		det_F *= eigenpairs[i].first;
+
+	det_F = sqrt(det_F);
+
+	for(unsigned int i=0; i<dim; i++)
+		{
+			double S_iso_i = stress_S_iso_i(eigenpairs,det_F,i);
+
+			SymmetricTensor<2,dim> temp_S_iso=symmetrize(outer_product(eigenpairs[i].second,eigenpairs[i].second));
+
+			temp_S_iso*=S_iso_i;
+
+			tensor_S+=temp_S_iso;
+		}
 }
+
 
 
 template <int dim>
@@ -274,10 +269,13 @@ void
 CompressibleOgden<dim>::stress_S_vol(SymmetricTensor<2,dim> &tensor_S,
 		  	  	  	  	  	  			  const SymmetricTensor<2,dim> &tensor_C) const
 {
-	(void)tensor_S;
-	(void)tensor_C;
+	tensor_S=0;
 
-	Assert(false,ExcMessage("The function stress_S_vol is not callable for CompressibleOgden"));
+	double J= sqrt(determinant(tensor_C));
+
+	tensor_S = invert(tensor_C);
+
+	tensor_S *= J*(B_vol/alpha_vol)*std::sinh(alpha_vol*(J-1));
 }
 
 
@@ -286,11 +284,95 @@ void
 CompressibleOgden<dim>::material_tangent_iso(SymmetricTensor<4,dim> &tangent,
 							  	  	  			  const SymmetricTensor<2,dim> &tensor_C) const
 {
-	(void)tangent;
-	(void)tensor_C;
+	tangent=0;
 
-	Assert(false,ExcMessage("The function material_tangent_iso is not callable for CompressibleOgden"));
+	std::array<std::pair< double, Tensor< 1, dim>>,dim> eigenpairs= eigenvectors(tensor_C,SymmetricTensorEigenvectorMethod::ql_implicit_shifts);
+
+	double det_F = 1;
+	for (unsigned int i=0; i<dim; ++i)
+		det_F *= eigenpairs[i].first;
+
+	det_F = sqrt(det_F);
+
+	Tensor<4,dim> temp_S_dev;
+
+
+	for(unsigned int i=0; i<dim; ++i)
+		{
+		for(unsigned int m=0; m<dim; ++m)
+			{
+			Tensor<2,dim> product_ii=outer_product(eigenpairs[i].second,eigenpairs[i].second);
+
+			Tensor<2,dim> product_mm=outer_product(eigenpairs[m].second,eigenpairs[m].second);
+
+			double dS_iso_i_dlambda_m= dS_iso_i_dlambda_j(eigenpairs, det_F, i, m);
+
+			temp_S_dev+=(outer_product(product_ii,product_mm)*dS_iso_i_dlambda_m);
+			}
+		}
+
+	Tensor<4,dim> S;
+	Tensor<4,dim> S_i_j_diff;
+	Tensor<4,dim> S_i_j_same;
+
+
+
+	for(unsigned int l=0;l<dim;l++)
+		{
+			for(unsigned int k=0;k<dim;k++)
+				{
+					Tensor<2,dim> product_lk=outer_product(eigenpairs[l].second,eigenpairs[k].second);
+
+					Tensor<2,dim> product_kl=outer_product(eigenpairs[k].second,eigenpairs[l].second);
+
+					double temp_S_i_j_diff=0;
+
+					double temp_S_i_j_same=0;
+
+					if (l!=k)
+					{
+						if(std::fabs(std::sqrt(eigenpairs[k].first)-std::sqrt(eigenpairs[l].first))>1e-8)
+						{
+						double S_k=stress_S_iso_i(eigenpairs,det_F,k);
+
+						double S_l=stress_S_iso_i(eigenpairs,det_F,l);
+
+						temp_S_i_j_diff=(S_k-S_l)/(eigenpairs[k].first-eigenpairs[l].first);
+						}
+						else
+						{
+							double dSk_dlambdak=dS_iso_i_dlambda_j(eigenpairs,det_F,k,k);
+
+							double dSl_dlambdak=dS_iso_i_dlambda_j(eigenpairs,det_F,l,k);
+
+							temp_S_i_j_same=(dSk_dlambdak-dSl_dlambdak)*0.5;
+						}
+					}
+					S_i_j_diff+=outer_product(product_lk,product_lk)*temp_S_i_j_diff;
+
+					S_i_j_diff+=outer_product(product_lk,product_kl)*temp_S_i_j_diff;
+
+					S_i_j_same+=outer_product(product_lk,product_lk)*temp_S_i_j_same;
+
+					S_i_j_same+=outer_product(product_lk,product_kl)*temp_S_i_j_same;
+				}
+			}
+
+	S=S_i_j_diff+S_i_j_same;
+
+	S+=temp_S_dev;
+
+	SymmetricTensor<4,dim> S_4;
+
+	tensor_to_symmetrictensor(S_4,S);
+
+	tangent=S_4;
+
+	S=0;
+
+	S_4=0;
 }
+
 
 
 template <int dim>
@@ -298,10 +380,32 @@ void
 CompressibleOgden<dim>::material_tangent_vol(SymmetricTensor<4,dim> &tangent,
 							  	  	  			  const SymmetricTensor<2,dim> &tensor_C) const
 {
-	(void)tangent;
-	(void)tensor_C;
+	tangent=0;
 
-	Assert(false,ExcMessage("The function material_tangent_vol is not callable for CompressibleOgden"));
+	double J = sqrt(determinant(tensor_C));
+
+	const double sinh_a_J = std::sinh(alpha_vol*(J-1));
+
+	const double cosh_a_J = std::cosh(alpha_vol*(J-1));
+
+	SymmetricTensor<4,dim> C_vol1;
+	SymmetricTensor<4,dim> C_vol2;
+
+	SymmetricTensor<2,dim> C_inv= invert(tensor_C);
+
+	C_vol1=outer_product(C_inv,C_inv);
+
+	double factor = (B_vol/alpha_vol)*J*sinh_a_J;
+
+	factor += std::pow(J,2)*B_vol*cosh_a_J;
+
+	C_vol1 *= factor;
+
+	C_vol2=tensorproduct(C_inv,C_inv);
+
+	C_vol2*=2*J*(B_vol/alpha_vol)*sinh_a_J;
+
+	tangent=C_vol1-C_vol2;
 }
 
 
@@ -320,6 +424,10 @@ namespace boost
 			// save data required to construct instance
 			ar << object_O->alpha;
 			ar << object_O->mu;
+			ar << object_O->kappa_vol;
+			ar << object_O->betha_vol;
+			ar << object_O->alpha_vol;
+			ar << object_O->B_vol;
 		}
 
 
@@ -330,11 +438,17 @@ namespace boost
 		{
 			// retrieve data from archive required to construct new instance
 			Vector<double> alpha, mu;
+			double alpha_vol=0, B_vol=0, kappa_vol=0, betha_vol=0;
 			ar >> alpha;
 			ar >> mu;
+			ar >> kappa_vol;
+			ar >> betha_vol;
+			ar >> alpha_vol;
+			ar >> B_vol;
+
 
 			// invoke inplace constructor to initialize instance of class
-			::new(object_O)ConstitutiveLaws::CompressibleOgden<dim>(alpha,mu);
+			::new(object_O)ConstitutiveLaws::CompressibleOgden<dim>(alpha,mu,kappa_vol,betha_vol,alpha_vol,B_vol);
 		}
 	}//namespace serialization
 }//namespace boost

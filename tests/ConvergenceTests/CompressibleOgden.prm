@@ -1,0 +1,18 @@
+# Listing of Parameters
+
+subsection Type of Material
+  # NeoHookean|Ogden|Yeoh|TNM|Gent|ArrudaBoyce|YeohFleming
+  set Name = Ogden
+end
+
+subsection Material properties Ogden
+   set Size = 3
+   set Mu 1 = 0.0662
+   set Mu 2 = 5.875e-12
+   set Mu 3 = 0.6249
+   set Alpha 1 = 2.875
+   set Alpha 2 = 14.221
+   set Alpha 3 = 1
+   set B_vol = 1.3e3
+   set Alpha_vol =4
+end

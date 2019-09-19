@@ -57,12 +57,17 @@ private:
 public:
 
 	CompressibleOgden(const Vector<double> alpha,
-						   const Vector<double> mu);
+						   const Vector<double> mu,const double kappa_vol, const double betha_vol, const double B, const double alpha_vol);
 
 	virtual ~CompressibleOgden() {}
 
-	virtual void stress_S_i(double &S,
-			  const SymmetricTensor<2,dim> &tensor_C,const int i) const;
+	virtual double stress_S_iso_i(const std::array<std::pair<double,Tensor<1,dim>>,dim> &eigenpairs_C,
+			  	  	  	  	  	  const double det_F,
+								  const int i) const;
+
+	double dS_iso_i_dlambda_j(const std::array<std::pair<double,Tensor<1,dim>>,dim> &eigenpairs_C,
+							  const double det_F,
+							  const int i,const int j) const;
 
 	virtual void stress_S(SymmetricTensor<2,dim> &tensor_S,
 						  const SymmetricTensor<2,dim> &tensor_C) const;
@@ -85,6 +90,14 @@ public:
 	const Vector<double> alpha;
 
 	const Vector<double> mu;
+
+	const double kappa_vol;
+
+	const double betha_vol;
+
+	const double B_vol;
+
+	const double alpha_vol;
 };
 
 }//namespace ConstitutiveLaws
