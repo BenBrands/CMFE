@@ -6,6 +6,6 @@ subsection Type of Material
 end
 
 subsection Material properties NeoHookean
-   set First Lame Parameter  = 12
+   set First Lame Parameter  = 0.5250
    set Second Lame Parameter = 8
 end

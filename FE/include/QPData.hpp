@@ -22,7 +22,7 @@
 
 #include <deal.II/base/symmetric_tensor.h>
 #include <deal.II/base/parameter_handler.h>
-
+#include <deal.II/lac/vector.h>
 
 #include <boost/serialization/access.hpp>
 
@@ -59,6 +59,30 @@ public:
 	double lambda;
 
 	double mu;
+
+	// material parameters for Ogden material model
+
+	Vector<double> alpha;
+
+	Vector<double> mu_O;
+
+	int size;
+
+	// material parameter Yeoh-Fleming model
+
+	double A;
+
+	double B;
+
+	double C;
+
+	double I_m;
+
+	//material parameter incompressible Material
+
+	double alpha_vol;
+
+	double B_vol;
 
 	template <class Archive>
 	void serialize(Archive &ar,

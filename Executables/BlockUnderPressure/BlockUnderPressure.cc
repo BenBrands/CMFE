@@ -32,7 +32,7 @@ int main(int argc, char **argv)
 
 	try
 	{
-		AssertThrow(argc>2,ExcMessage("Two parameter file names have to be passed!"));
+		AssertThrow(argc==3,ExcMessage("Two parameter file names have to be passed!"));
 
 		std::vector<std::string> args;
 
