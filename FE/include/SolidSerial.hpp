@@ -74,10 +74,10 @@ private:
 						  const unsigned int it_nr=0) const;
 
 	void setup_qph(CellDataStorage<typename DoFHandler<dim>::cell_iterator,
-								   QPData<dim>> &qp_data) const;
+				   QPData<dim>> &qp_data) const;
 
-	void update_qph(CellDataStorage<typename DoFHandler<dim>::cell_iterator,
-			   	    				QPData<dim>> &qp_data,
+	bool update_qph(CellDataStorage<typename DoFHandler<dim>::cell_iterator,
+					QPData<dim>> &qp_data,
 					const Vector<double> &solution) const;
 
 	void assemble_matrix(SparseMatrix<double> &matrix,

@@ -107,9 +107,9 @@ public:
 
 	void reinit(const MaterialData &material_data);
 
-	void update_values(const Tensor<2,dim> &disp_grad);
+	bool update_values(const Tensor<2,dim> &disp_grad);
 
-	void update_values(const SymmetricTensor<2,dim> &tensor_C);
+	bool update_values(const SymmetricTensor<2,dim> &tensor_C);
 
 	Tensor<2,dim> tensor_F;
 

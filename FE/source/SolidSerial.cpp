@@ -228,9 +228,9 @@ SolidSerial<dim>::setup_qph(CellDataStorage<typename DoFHandler<dim>::cell_itera
 
 
 template <int dim>
-void
+bool
 SolidSerial<dim>::update_qph(CellDataStorage<typename DoFHandler<dim>::cell_iterator,
-		   	    							 QPData<dim>> &qp_data,
+							 	 	 	 	 QPData<dim>> &qp_data,
 							 const Vector<double> &solution) const
 {
 	FEValues<dim> fe_v(fe,
@@ -238,8 +238,6 @@ SolidSerial<dim>::update_qph(CellDataStorage<typename DoFHandler<dim>::cell_iter
 					   update_gradients);
 
 	std::vector<Tensor<2,dim>> qp_deformation_gradients(quadrature.size());
-
-	unsigned int num=0;
 
 	for (const auto &cell : dof_handler.active_cell_iterators())
 	{
@@ -253,20 +251,13 @@ SolidSerial<dim>::update_qph(CellDataStorage<typename DoFHandler<dim>::cell_iter
 
 	    for (unsigned int qp=0; qp<quadrature.size(); ++qp)
 	    {
-	    	qp_data_cell[qp]->update_values(qp_deformation_gradients[qp]);
+	    	const bool valid_det_F = qp_data_cell[qp]->update_values(qp_deformation_gradients[qp]);
 
-	    	if (qp==0 && false)
-	    	{
-	    		std::cout << "      Cell #" << num << std::endl;
-				std::cout << "      F: [" << qp_data_cell[qp]->tensor_F << "]" << std::endl;
-				std::cout << "      S: [" << qp_data_cell[qp]->tensor_S << "]" << std::endl;
-				std::cout << "      C: [" << qp_data_cell[qp]->tensor_C << "]" << std::endl;
-				std::cout << "      det F: " << qp_data_cell[qp]->det_J << std::endl;
-				std::cout << std::endl;
-	    	}
+	    	if (!valid_det_F)
+	    		return false;
 	    }
-	    ++num;
 	}
+	return true;
 }
 
 
@@ -417,7 +408,6 @@ SolidSerial<dim>::solve_NewtonRaphson(Vector<double> &solution,
 
 	Vector<double> residuum(solution.size());
 
-
 	assemble_residuum(residuum,qp_data,load,constraints);
 
 	SparseMatrix<double> matrix(sparsity_pattern);
@@ -439,8 +429,14 @@ SolidSerial<dim>::solve_NewtonRaphson(Vector<double> &solution,
 
     	 output_results(solution,qp_data,"./solution_"+Utilities::to_string(it+1)+".vtu");
 
-    	 update_qph(qp_data,solution);
+    	 const bool success = update_qph(qp_data,solution);
 
+    	 if (!success)
+    	 {
+    		 std::cout << "      Negative det_F occured ==> reset and decrease load " << std::endl;
+
+    		 return false;
+    	 }
     	 assemble_residuum(residuum,qp_data,load,constraints);
 
     	 output_results(residuum,qp_data,"./solution_"+Utilities::to_string(it+1)+".vtu");
@@ -452,8 +448,12 @@ SolidSerial<dim>::solve_NewtonRaphson(Vector<double> &solution,
     	 if (norm_residuum / initial_residuum < parameters.tol_f)
     		 return true;
 
-    	 else
-    		 assemble_matrix(matrix,qp_data,constraints);
+    	 const double norm_increment = solution_increment.l2_norm();
+
+    	 if ((it>0) && (norm_increment < parameters.tol_u))
+    		 return true;
+
+    	assemble_matrix(matrix,qp_data,constraints);
     }
 
     return false;
@@ -590,7 +590,6 @@ SolidSerial<dim>::run()
 
 	setup_qph(qp_data);
 
-
 	const double initial_load_factor = parameters.initial_load_factor;
 
 	double load_factor_old = 0;
@@ -598,7 +597,6 @@ SolidSerial<dim>::run()
 	double load_factor_increment = initial_load_factor;
 
 	double load_factor = load_factor_old + load_factor_increment;
-
 
 	for (unsigned int count=0; count < parameters.max_n_load_steps; ++count)
 	{
@@ -643,6 +641,11 @@ SolidSerial<dim>::run()
 			else
 			{
 				solution = 0;
+
+				std::cout << "   Non-linear problem could not be solved within the maximum number of load steps = "
+						  << parameters.max_n_load_steps
+						  << " and stopped at load factor "
+						  << load_factor << std::endl;
 
 				return;
 			}
