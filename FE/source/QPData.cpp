@@ -63,9 +63,7 @@ B(cpy.B),
 C(cpy.C),
 I_m(cpy.I_m),
 alpha_vol(cpy.alpha_vol),
-B_vol(cpy.B_vol),
-kappa_vol(cpy.kappa_vol),
-betha_vol(cpy.betha_vol)
+B_vol(cpy.B_vol)
 {}
 
 
@@ -97,10 +95,6 @@ MaterialData::operator=(const MaterialData &cpy)
 		alpha_vol = cpy.alpha_vol;
 
 		B_vol = cpy.B_vol;
-
-		kappa_vol =cpy.kappa_vol;
-
-		betha_vol = cpy.betha_vol;
 	}
 	return *this;
 }
@@ -191,15 +185,6 @@ MaterialData::declare_parameters(ParameterHandler &prm)
 		prm.declare_entry("B_vol",
 						  "1.3e3",
 						  Patterns::Double(0.));
-
-		prm.declare_entry("kappa_vol",
-						  "2e3",
-						  Patterns::Double(0.));
-
-		prm.declare_entry("betha_vol",
-						  "9",
-						  Patterns::Double(0.));
-
 	}
 	prm.leave_subsection();
 
@@ -344,10 +329,6 @@ MaterialData::serialize(Archive &ar,
 	ar & alpha_vol;
 
 	ar & B_vol;
-
-	ar & kappa_vol;
-
-	ar & betha_vol;
 }
 
 
@@ -369,27 +350,44 @@ tensor_C(Physics::Elasticity::StandardTensors<dim>::I)
 {
 	if (material_data.material_name.compare("NeoHookean")==0)
 	{
-		material = std::make_shared<ConstitutiveLaws::CompressibleNeoHookean<dim>>(material_data.lambda,material_data.mu);
+		material = std::make_shared<ConstitutiveLaws::CompressibleNeoHookean<dim>>(material_data.lambda,
+																				   material_data.mu);
 	}
 
 	else if (material_data.material_name.compare("Ogden")==0)
 	{
-		material = std::make_shared<ConstitutiveLaws::CompressibleOgden<dim>>(material_data.alpha,material_data.mu_O,material_data.kappa_vol, material_data.betha_vol, material_data.alpha_vol, material_data.B_vol);
+		material = std::make_shared<ConstitutiveLaws::CompressibleOgden<dim>>(material_data.alpha,
+																			  material_data.mu_O,
+																			  material_data.alpha_vol,
+																			  material_data.B_vol);
 	}
 
 	else if (material_data.material_name.compare("YeohFleming") ==0)
 	{
-		material = std::make_shared<ConstitutiveLaws::CompressibleYeohFleming<dim>>(material_data.A,material_data.B, material_data.C, material_data.I_m, material_data.alpha_vol, material_data.B_vol);
+		material = std::make_shared<ConstitutiveLaws::CompressibleYeohFleming<dim>>(material_data.A,
+																					material_data.B,
+																					material_data.C,
+																					material_data.I_m,
+																					material_data.alpha_vol,
+																					material_data.B_vol);
 	}
 
 	else if (material_data.material_name.compare("IncopmressibleYeohFleming") ==0)
 	{
-		material = std::make_shared<ConstitutiveLaws::IncompressibleYeohFleming<dim>>(material_data.A,material_data.B, material_data.C, material_data.I_m, material_data.alpha_vol, material_data.B_vol);
+		material = std::make_shared<ConstitutiveLaws::IncompressibleYeohFleming<dim>>(material_data.A,
+																					  material_data.B,
+																					  material_data.C,
+																					  material_data.I_m,
+																					  material_data.alpha_vol,
+																					  material_data.B_vol);
 	}
 
 	else if (material_data.material_name.compare("IncompressibleOgden")==0)
 	{
-		material = std::make_shared<ConstitutiveLaws::IncompressibleOgden<dim>>(material_data.alpha,material_data.mu_O, material_data.alpha_vol, material_data.B_vol);
+		material = std::make_shared<ConstitutiveLaws::IncompressibleOgden<dim>>(material_data.alpha,
+																				material_data.mu_O,
+																				material_data.alpha_vol,
+																				material_data.B_vol);
 	}
 
 	else
@@ -413,27 +411,44 @@ QPData<dim>::reinit(const MaterialData &material_data)
 
 	if (material_data.material_name.compare("NeoHookean")==0)
 	{
-		material = std::make_shared<ConstitutiveLaws::CompressibleNeoHookean<dim>>(material_data.lambda,material_data.mu);
+		material = std::make_shared<ConstitutiveLaws::CompressibleNeoHookean<dim>>(material_data.lambda,
+																				   material_data.mu);
 	}
 
 	else if (material_data.material_name.compare("Ogden")==0)
 	{
-		material = std::make_shared<ConstitutiveLaws::CompressibleOgden<dim>>(material_data.alpha,material_data.mu_O,material_data.kappa_vol, material_data.betha_vol, material_data.alpha_vol, material_data.B_vol);
+		material = std::make_shared<ConstitutiveLaws::CompressibleOgden<dim>>(material_data.alpha,
+																			  material_data.mu_O,
+																			  material_data.alpha_vol,
+																			  material_data.B_vol);
 	}
 
 	else if (material_data.material_name.compare("YeohFleming") ==0)
 	{
-		material = std::make_shared<ConstitutiveLaws::CompressibleYeohFleming<dim>>(material_data.A,material_data.B, material_data.C, material_data.I_m, material_data.alpha_vol, material_data.B_vol);
+		material = std::make_shared<ConstitutiveLaws::CompressibleYeohFleming<dim>>(material_data.A,
+																					material_data.B,
+																					material_data.C,
+																					material_data.I_m,
+																					material_data.alpha_vol,
+																					material_data.B_vol);
 	}
 
 	else if (material_data.material_name.compare("IncopmressibleYeohFleming") ==0)
 	{
-		material = std::make_shared<ConstitutiveLaws::IncompressibleYeohFleming<dim>>(material_data.A,material_data.B, material_data.C, material_data.I_m, material_data.alpha_vol, material_data.B_vol);
+		material = std::make_shared<ConstitutiveLaws::IncompressibleYeohFleming<dim>>(material_data.A,
+																					  material_data.B,
+																					  material_data.C,
+																					  material_data.I_m,
+																					  material_data.alpha_vol,
+																					  material_data.B_vol);
 	}
 
 	else if (material_data.material_name.compare("IncompressibleOgden")==0)
 	{
-		material = std::make_shared<ConstitutiveLaws::IncompressibleOgden<dim>>(material_data.alpha,material_data.mu_O, material_data.alpha_vol, material_data.B_vol);
+		material = std::make_shared<ConstitutiveLaws::IncompressibleOgden<dim>>(material_data.alpha,
+																				material_data.mu_O,
+																				material_data.alpha_vol,
+																				material_data.B_vol);
 	}
 
 	else

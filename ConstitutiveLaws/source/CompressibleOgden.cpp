@@ -90,19 +90,14 @@ void tensor_to_symmetrictensor(SymmetricTensor<4,dim> &Sym, Tensor <4,dim> &T)
 
 template <int dim>
 CompressibleOgden<dim>::CompressibleOgden(const Vector<double> alpha_,
-													const Vector<double> mu_,
-													const double kappa_vol_,
-													const double betha_vol_,
-													const double alpha_vol_,
-													const double B_)
+										  const Vector<double> mu_,
+										  const double alpha_vol_,
+										  const double B_)
 :
 alpha(alpha_),
 mu(mu_),
-kappa_vol(kappa_vol_),
-betha_vol(betha_vol_),
 alpha_vol(alpha_vol_),
 B_vol(B_)
-
 {}
 
 
@@ -424,8 +419,6 @@ namespace boost
 			// save data required to construct instance
 			ar << object_O->alpha;
 			ar << object_O->mu;
-			ar << object_O->kappa_vol;
-			ar << object_O->betha_vol;
 			ar << object_O->alpha_vol;
 			ar << object_O->B_vol;
 		}
@@ -438,17 +431,14 @@ namespace boost
 		{
 			// retrieve data from archive required to construct new instance
 			Vector<double> alpha, mu;
-			double alpha_vol=0, B_vol=0, kappa_vol=0, betha_vol=0;
+			double alpha_vol=0, B_vol=0;
 			ar >> alpha;
 			ar >> mu;
-			ar >> kappa_vol;
-			ar >> betha_vol;
 			ar >> alpha_vol;
 			ar >> B_vol;
 
-
 			// invoke inplace constructor to initialize instance of class
-			::new(object_O)ConstitutiveLaws::CompressibleOgden<dim>(alpha,mu,kappa_vol,betha_vol,alpha_vol,B_vol);
+			::new(object_O)ConstitutiveLaws::CompressibleOgden<dim>(alpha,mu,alpha_vol,B_vol);
 		}
 	}//namespace serialization
 }//namespace boost

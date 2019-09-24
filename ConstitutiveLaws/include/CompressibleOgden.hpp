@@ -54,10 +54,13 @@ private:
 
 	BOOST_SERIALIZATION_SPLIT_MEMBER()
 
+
 public:
 
 	CompressibleOgden(const Vector<double> alpha,
-						   const Vector<double> mu,const double kappa_vol, const double betha_vol, const double B, const double alpha_vol);
+					  const Vector<double> mu,
+					  const double B,
+					  const double alpha_vol);
 
 	virtual ~CompressibleOgden() {}
 
@@ -67,7 +70,8 @@ public:
 
 	double dS_iso_i_dlambda_j(const std::array<std::pair<double,Tensor<1,dim>>,dim> &eigenpairs_C,
 							  const double det_F,
-							  const int i,const int j) const;
+							  const int i,
+							  const int j) const;
 
 	virtual void stress_S(SymmetricTensor<2,dim> &tensor_S,
 						  const SymmetricTensor<2,dim> &tensor_C) const;
@@ -90,10 +94,6 @@ public:
 	const Vector<double> alpha;
 
 	const Vector<double> mu;
-
-	const double kappa_vol;
-
-	const double betha_vol;
 
 	const double B_vol;
 
