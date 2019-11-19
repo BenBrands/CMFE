@@ -329,8 +329,6 @@ SolidSerial<dim>::assemble_residuum(Vector<double> &residuum,
 
 	residuum = 0;
 
-	Vector<double> tmp(dof_handler.n_dofs());
-
 	FEValues<dim> fe_v(fe,
 					   quadrature,
 					   update_gradients | update_JxW_values);
@@ -340,6 +338,8 @@ SolidSerial<dim>::assemble_residuum(Vector<double> &residuum,
 								update_values | update_quadrature_points | update_JxW_values);
 
 	Vector<double> cell_residuum(fe.dofs_per_cell);
+
+	Vector<double> cell_rhs(fe.dofs_per_cell);
 
 	std::vector<types::global_dof_index> local_dof_indices(fe.dofs_per_cell);
 
@@ -420,14 +420,11 @@ SolidSerial<dim>::solve_NewtonRaphson(Vector<double> &solution,
 
     for (unsigned int it=0; it< parameters.max_iterations_NR; ++it)
     {
-
     	 solve_linear_system(solution_increment,matrix,residuum);
 
     	 constraints.distribute(solution_increment);
 
     	 solution += solution_increment;
-
-    	 output_results(solution,qp_data,"./solution_"+Utilities::to_string(it+1)+".vtu");
 
     	 const bool success = update_qph(qp_data,solution);
 
@@ -438,8 +435,6 @@ SolidSerial<dim>::solve_NewtonRaphson(Vector<double> &solution,
     		 return false;
     	 }
     	 assemble_residuum(residuum,qp_data,load,constraints);
-
-    	 output_results(residuum,qp_data,"./solution_"+Utilities::to_string(it+1)+".vtu");
 
     	 const double norm_residuum = residuum.l2_norm();
 
@@ -514,7 +509,8 @@ SolidSerial<dim>::solve_linear_system(Vector<double> &solution,
 
 template <int dim>
 void
-SolidSerial<dim>::output_results(const Vector<double> &vec, CellDataStorage<typename DoFHandler<dim>::cell_iterator, QPData<dim>> &qp_data,
+SolidSerial<dim>::output_results(const Vector<double> &vec,
+								 CellDataStorage<typename DoFHandler<dim>::cell_iterator,QPData<dim>> &qp_data,
 								 const std::string &file_name) const
 {
 	DataOut<dim> data_out;
@@ -530,20 +526,47 @@ SolidSerial<dim>::output_results(const Vector<double> &vec, CellDataStorage<type
 	Vector<double> norm_of_stress(triangulation->n_active_cells());
 
 	SymmetricTensor<2, dim> accumulated_stress;
+
 	for (const auto &cell : dof_handler.active_cell_iterators())
-		{
+	{
 		std::vector<std::shared_ptr<QPData<dim>>> qp_data_cell = qp_data.get_data(cell);
 
-		  for (unsigned int qp=0; qp<quadrature.size(); ++qp)
-				{
-			  accumulated_stress += qp_data_cell[qp]->tensor_S;
+		for (unsigned int qp=0; qp<quadrature.size(); ++qp)
+		{
+			accumulated_stress += qp_data_cell[qp]->tensor_S;
 
-			  norm_of_stress(cell->active_cell_index()) =
-				(accumulated_stress / quadrature.size()).norm();
-				}
+			norm_of_stress(cell->active_cell_index()) = (accumulated_stress / quadrature.size()).norm();
 		}
-
+	}
 	data_out.add_data_vector(norm_of_stress, "norm_of_stress");
+
+	data_out.add_data_vector(vec,
+							 solution_name,
+							 DataOut<dim>::type_dof_data,
+							 data_component_interpretation);
+
+	data_out.build_patches();
+
+    std::ofstream output(file_name);
+
+    data_out.write_vtu(output);
+}
+
+
+template <int dim>
+void
+SolidSerial<dim>::output_results(const Vector<double> &vec,
+								 const std::string &file_name) const
+{
+	DataOut<dim> data_out;
+
+	data_out.attach_dof_handler(dof_handler);
+
+	std::vector<DataComponentInterpretation::DataComponentInterpretation>
+	data_component_interpretation(dim,
+								  DataComponentInterpretation::component_is_part_of_vector);
+
+	std::vector<std::string> solution_name(dim,"d");
 
 	data_out.add_data_vector(vec,
 							 solution_name,
@@ -608,12 +631,14 @@ SolidSerial<dim>::run()
 											  qp_data,
 											  load);
 
-		// if convergence is obtained for load_factor=1, the problem is solved
-		if ((load_factor == 1) && conv)
-			return;
-
 		if (conv)
 		{
+			output_results(solution,qp_data,"./solution_"+Utilities::to_string(count+1)+".vtu");
+
+			// if convergence is obtained for load_factor=1, the problem is solved
+			if (load_factor == 1)
+				return;
+
 			solution_reset = solution;
 
 			load_factor_old = load_factor;
